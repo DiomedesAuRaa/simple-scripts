@@ -203,3 +203,44 @@ main () {
 
 main "$@"
 
+
+
+
+# Set AWS credentials (replace with your own values)
+$accessKey = "your_access_key"
+$secretKey = "your_secret_key"
+$region = "your_region"
+
+# Set S3 bucket information (replace with your own values)
+$bucketName = "your_bucket_name"
+$s3Prefix = "folder/subfolder/"  # Optional: specify a prefix for the S3 objects
+
+# Set local folder and number of days to retain files
+$localFolder = "C:\Path\To\Your\Folder"
+$daysToRetain = 7
+
+# Install and import the AWS PowerShell module
+Install-Module -Name AWSPowerShell.NetCore -Force -AllowClobber
+Import-Module AWSPowerShell.NetCore
+
+# Set AWS credentials
+Set-AWSCredentials -AccessKey $accessKey -SecretKey $secretKey -StoreAs "default" -Region $region
+
+# Get the current date and calculate the date threshold for deletion
+$currentDate = Get-Date
+$deleteThreshold = $currentDate.AddDays(-$daysToRetain)
+
+# Upload files to S3
+Get-ChildItem -Path $localFolder | ForEach-Object {
+    $fileLastModified = $_.LastWriteTime
+    if ($fileLastModified -lt $deleteThreshold) {
+        # Upload file to S3
+        Write-S3Object -BucketName $bucketName -Key "$s3Prefix$($_.Name)" -File $_.FullName
+
+        # Delete the file locally
+        Remove-Item $_.FullName -Force
+    }
+}
+
+# Optional: Clean up older files in S3 if needed
+# Get-S3Object -BucketName $bucketName -KeyPrefix $s3Prefix | Where-Object { $_.LastModified -lt $deleteThreshold } | Remove-S3Object -Force
