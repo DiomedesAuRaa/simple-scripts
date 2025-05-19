@@ -1,4 +1,3 @@
-#!/bin/bash
 # === README ===
 # Script: reorg-meta.sh
 #
@@ -30,6 +29,8 @@
 #   - Run with `bash`, not `sh`, due to Bash process substitution.
 
 
+#!/bin/bash
+
 YEAR=$(basename "$PWD")
 
 if ! [[ "$YEAR" =~ ^[12][0-9]{3}$ ]]; then
@@ -47,6 +48,21 @@ error_count=0
 
 while IFS= read -r -d '' file; do
   clean_path="${file#./}"
+
+  # Skip empty files
+  if [[ ! -s "$file" ]]; then
+    echo "[SKIP] $clean_path (empty file)" | tee -a reorg-errors.log
+    ((error_count++))
+    continue
+  fi
+
+  # Skip unreadable or broken format files
+  if ! exiftool -s3 -DateTimeOriginal "$file" >/dev/null 2>&1 && \
+     ! exiftool -s3 -DateTimeDigitized "$file" >/dev/null 2>&1; then
+    echo "[SKIP] $clean_path (invalid or unsupported format)" | tee -a reorg-errors.log
+    ((error_count++))
+    continue
+  fi
 
   # Replace spaces in filename with dashes
   dir=$(dirname "$file")
